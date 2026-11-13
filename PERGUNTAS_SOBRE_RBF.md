@@ -1,32 +1,32 @@
 # Perguntas do professor sobre as gaussianas (RBF): como responder
 
-Este guia parte das perguntas que o professor fez ao colega na aula de dúvidas e mostra como respondê-las **com os números do seu projeto**. No fim, há outras perguntas que ele pode fazer na mesma linha.
+Este guia parte das perguntas que o professor fez ao colega na aula de dúvidas e mostra como respondê-las **com os números do seu projeto**. No fim, há outras perguntas que ele pode fazer na mesma linha. Todos os números foram calculados com o seu código e os seus dados.
 
-Todos os números abaixo foram calculados com o seu código e os seus dados.
+O projeto tem **duas** RBFs. Saiba qual é qual:
+
+| | RBF dinâmica (Seção 4) | RBF no tempo (Seção 3) |
+|---|---|---|
+| Papel | **O modelo pedido no enunciado** (vale nota) | Preparação/referência (filtro) |
+| Entrada da gaussiana | vetor de 4 números: [s[n−1], s[n−2], u[n], u[n−1]] | 1 número: o tempo t |
+| Número de gaussianas | 26 (para x e para y) | 40 (x) e 50 (y) |
+| Centros | 26 linhas dos próprios dados | de 0 a 30 s, igualmente espaçados |
+| σ | 0,2 (x) e 0,3 (y), por validação | 0,77 s (x) e 0,61 s (y) = espaçamento |
+
+Quando o professor perguntar "quantas gaussianas?", responda primeiro sobre a **RBF dinâmica**, que é o modelo do enunciado.
 
 ---
 
-## 1. Essas perguntas fazem sentido para o seu projeto?
+## 1. O que o professor estava cobrando
 
-Fazem, e são as perguntas mais importantes sobre RBF. Os três parâmetros que **você escolhe** num modelo RBF são:
-
-1. **quantas** gaussianas usar (M);
-2. **onde** ficam os centros (c₁, c₂, …, c_M);
-3. **qual** a largura de cada uma (σ).
-
-Os pesos (w) o computador calcula sozinho pela equação normal. Por isso o professor pergunta justamente sobre M, centros e σ: é aí que o aluno mostra se entendeu o método ou só copiou código.
-
-### O que o professor estava cobrando do colega
-
-> "Por que está em 10 se os valores são a partir de 1400?"
+> "Onde estão os centros? Por que está em 10 se os valores são a partir de 1400?"
 
 A regra por trás dessa pergunta é:
 
-> **Os centros têm que ficar no mesmo intervalo e na mesma unidade da variável de entrada da gaussiana.**
+> **Os centros têm que ficar no mesmo intervalo e na mesma unidade da variável que entra na gaussiana.**
 
-A gaussiana φ(v) = exp(−(v − c)² / (2σ²)) só "liga" (vale perto de 1) quando a entrada **v** está perto do centro **c**. Pelo que você descreveu, o colega colocou os centros perto de 10 enquanto a variável de entrada tinha valores na casa de 1400 (por exemplo, o número da amostra, que vai de 0 a 1500). Nesse caso, nenhum dado fica perto de nenhum centro e todas as gaussianas valem praticamente zero. O modelo vira uma **reta horizontal** (só sobra o w₀) e não aprende nada.
+A gaussiana φ(z) = exp(−‖z − c‖² / (2σ²)) só "liga" (vale perto de 1) quando a entrada **z** está perto do centro **c**. Pelo que você descreveu, o colega deixou os centros perto de 10 enquanto a entrada tinha valores na casa de 1400. Nenhum dado fica perto de nenhum centro, todas as gaussianas valem praticamente zero, e o modelo vira uma constante (só sobra o w₀).
 
-**No seu projeto isso não acontece:** a entrada das gaussianas é o **tempo t**, que vai de 0 a 30 s, e os centros também vão de 0 a 30 s, na mesma unidade (segundos).
+**No seu projeto isso não acontece:** os centros da RBF dinâmica são **linhas dos próprios dados**, então estão, por construção, onde os dados estão.
 
 ---
 
@@ -34,83 +34,79 @@ A gaussiana φ(v) = exp(−(v − c)² / (2σ²)) só "liga" (vale perto de 1) q
 
 ### "Quantas gaussianas você está usando?" / "Quantos centros escolheu?"
 
-As duas perguntas são a mesma coisa: **cada gaussiana tem um centro**, então número de gaussianas = número de centros = M.
+São a mesma pergunta: **cada gaussiana tem um centro**.
 
-> "Uso **40 gaussianas para x(t)** e **50 para y(t)**. Escolhi por validação: separei 1 de cada 5 amostras, testei M de 20 a 200 e medi o erro nas amostras que o modelo não viu. Com poucas gaussianas (M = 20) o erro de validação era bem maior: 1,7 vez maior em x e 12 vezes maior em y. Acima de 40–50 o erro para de cair e, em x, volta a subir, porque a curva começa a copiar o ruído. Como o erro fica quase plano perto do mínimo, peguei o **menor M** com erro até 2% acima do mínimo (regra da parcimônia)."
+> "No modelo dinâmico uso **26 gaussianas para cada saída**: 10 para quando a entrada está parada em +1, 10 para quando está parada em −1, e 3 para cada tipo de troca da entrada (de −1 para +1 e de +1 para −1). Somando o w₀, são 27 pesos. Escolhi 10 por estado testando 5, 10, 15 e 20 na validação: 10 deu o menor erro nas duas saídas."
 
-Somando o w₀, o modelo tem **41 pesos para x** e **51 para y**.
+| Centros por estado | Total M | EMQ de validação (x) | EMQ de validação (y) |
+|---|---|---|---|
+| 5 | 16 | 0,01331 | 0,00689 |
+| **10** | **26** | **0,01308** | **0,00664** |
+| 15 | 36 | 0,01346 | 0,00673 |
+| 20 | 46 | 0,01348 | 0,00689 |
+
+**Por que só 3 para as trocas?** Porque há poucas linhas de troca nos dados: 14 linhas com (u[n], u[n−1]) = (+1, −1) e 15 com (−1, +1), contra ≈ 735 de cada estado parado.
 
 ### "Onde estão os centros?"
 
-> "Os centros estão **no eixo do tempo, de 0 a 30 segundos, igualmente espaçados**, cobrindo todo o intervalo dos dados. Para x, com 40 centros, eles ficam a cada 0,77 s: 0; 0,77; 1,54; 2,31; … ; 29,23; 30. Para y, com 50 centros, ficam a cada 0,61 s. É a linha `centros = np.linspace(0, 30, M)`."
+> "Cada centro é um **vetor de 4 números**, no mesmo espaço das entradas do modelo: [s[n−1], s[n−2], u[n], u[n−1]]. Eu peguei os centros dos próprios dados: para cada combinação de (u[n], u[n−1]), ordenei as linhas pelo valor de s[n−1] e peguei linhas igualmente espaçadas nessa ordem. Assim os centros cobrem desde o menor até o maior valor da saída. O gráfico da Seção 4.4 mostra os centros (triângulos) em cima da nuvem de dados."
 
-| | x(t) | y(t) |
-|---|---|---|
-| Número de gaussianas M | 40 | 50 |
-| Primeiro centro | 0 s | 0 s |
-| Último centro | 30 s | 30 s |
-| Espaçamento entre centros | 0,769 s | 0,612 s |
-| σ (largura) | 0,769 s | 0,612 s |
-| Amostras entre dois centros | ≈ 38 | ≈ 31 |
-| Total de pesos (w₀ + M) | 41 | 51 |
+Exemplos (saída do código):
 
-### "Por que está em X se os valores são a partir de Y?" (a versão para o seu projeto)
+| Centro | s[n−1] | s[n−2] | u[n] | u[n−1] |
+|---|---|---|---|---|
+| x, c₁ (menor valor com u = +1) | −0,416 | −0,309 | +1 | +1 |
+| x, c₁₁ (u = −1) | −0,273 | −0,220 | −1 | −1 |
+| y, c₁ (menor valor com u = +1) | −0,774 | −0,609 | +1 | +1 |
+| y, c₂₁ (troca de −1 para +1) | −0,718 | −0,782 | +1 | −1 |
 
-Se ele perguntar algo como "por que os centros vão de 0 a 30?":
+### "Por que os centros estão nessa faixa?" (a versão da pergunta do colega para o seu projeto)
 
-> "Porque a entrada da minha gaussiana é o tempo, e o tempo dos dados vai de 0 a 30 s. Os centros precisam estar onde os dados estão. Se eu colocasse os centros só de 0 a 10, as gaussianas não cobririam de 10 a 30 s e a curva nesse trecho ficaria praticamente zero."
+> "Porque é onde os dados estão: x varia de −0,42 a 0,41, y de −0,78 a 0,69, e u só vale −1 ou +1. Como os centros são linhas dos próprios dados, eles ficam automaticamente nessa faixa e na mesma unidade."
 
-Isso foi testado: com os centros só entre 0 e 10 s, a curva em t = 20 s vale ≈ 0,001 (praticamente zero). O EMQ de y piora de 0,0053 para 0,051 (quase 10 vezes) e o de x de 0,0097 para 0,0147.
+Isso foi testado: se os centros tivessem s entre 0 e 30, longe dos dados, o EMQ de y iria de 0,0076 para 0,0751, quase igual à variância do sinal (0,0838). Ou seja, o modelo não explicaria praticamente nada.
 
 ---
 
 ## 3. Como mostrar isso no código na hora
 
-As linhas que respondem às três perguntas estão no `projeto_u2.py` (e na seção 3 do notebook):
-
 | O quê | Linha no `projeto_u2.py` | Código |
 |---|---|---|
-| Fórmula da gaussiana | 80 | `np.exp(-(tempos - centros[j]) ** 2 / (2 * sigma ** 2))` |
-| Onde ficam os centros | 84 | `centros = np.linspace(0, 30, M)` |
-| Largura σ | 85 | `sigma = centros[1] - centros[0]` |
-| Cálculo dos pesos | 87 | `w = np.linalg.solve(Phi.T @ Phi, Phi.T @ sinal)` |
-| Valores de M testados | 94 | `lista_M = np.arange(20, 201, 10)` |
-| Escolha de M | 106–107 | `limite = 1.02 * erros_val.min()` … |
+| Distância ao centro (4D) | 75 | `distancia2 = np.sum((Z - centros[j]) ** 2, axis=1)` |
+| Fórmula da gaussiana | 76 | `np.exp(-distancia2 / (2 * sigma ** 2))` |
+| Escolha dos centros | 156–164 | `escolher_centros`: as 4 combinações de u, ordena por s[n−1] (linha 161), escolhe igualmente espaçados (linha 162) |
+| Valores de σ testados | 180 | `lista_sigma = [0.1, 0.2, 0.3, 0.4, 0.5, 0.75]` |
+| Escolha de σ | 191–192 | menor σ com erro até 2% acima do mínimo |
+| Centros finais e pesos | 203–207 | `centros_x = escolher_centros(Z_x)` … `equacao_normal(Phi_x, alvo_x)` |
 
-Se ele pedir para **ver** os centros, rode isto depois do código principal (no notebook, numa célula nova; no script, no final):
+Se ele pedir para **ver** os centros, rode isto no final (no notebook, numa célula nova):
 
 ```python
-print("Centros de x:", np.round(c_x, 2))
-print("sigma de x =", round(s_x, 4), "s")
-print("Centros de y:", np.round(c_y, 2))
-print("sigma de y =", round(s_y, 4), "s")
-
-plt.figure(figsize=(14, 3))
-plt.plot(t, x, "o", ms=2, alpha=0.3, label="x medido")
-plt.plot(c_x, np.zeros_like(c_x), "k^", label="centros das gaussianas")
-plt.xlabel("Tempo (s)"); plt.legend(); plt.show()
+print("Centros de x  [x[n-1], x[n-2], u[n], u[n-1]]:")
+print(np.round(centros_x, 3))
+print("sigma de x =", sigma_rbf["x"])
 ```
 
-O gráfico mostra os 40 triângulos espalhados de 0 a 30 s, embaixo dos dados.
+E mostre o gráfico da Seção 4.4 ("dados e os 26 centros no plano").
 
 ---
 
-## 4. Por que centros fora do lugar estragam o modelo (para entender de verdade)
+## 4. Por que centros no lugar errado estragam o modelo
 
-Pense em cada gaussiana como uma **lanterna** apontada para um ponto do eixo (o centro), com um facho de largura σ. O modelo só consegue "desenhar" a curva onde alguma lanterna ilumina. Onde nenhuma ilumina, sobra só o w₀ (uma constante).
+Pense em cada gaussiana como uma **lanterna** apontada para um ponto (o centro), com um facho de largura σ. O modelo só consegue "desenhar" a resposta onde alguma lanterna ilumina.
 
-Testei três cenários com os seus dados:
+Cenários testados com os seus dados (EMQ um passo à frente):
 
 | Cenário | EMQ de x | EMQ de y | O que acontece |
 |---|---|---|---|
-| **Seu modelo:** entrada = tempo (0–30 s), centros de 0 a 30 | 0,0097 | 0,0053 | Correto: ajusta no nível do ruído |
-| Entrada = tempo, centros só de 0 a 10 | 0,0147 | 0,0512 | De 10 a 30 s a curva fica praticamente zero |
-| Entrada = **número da amostra** (0–1500), centros de 0 a 30 | 0,0203 | 0,0828 | Quase tudo fica sem gaussiana: o EMQ fica igual à variância do sinal (0,0206 e 0,0837), ou seja, o modelo não explica nada |
-| Entrada = número da amostra, centros de **0 a 1500** | 0,0097 | 0,0053 | Volta a funcionar, idêntico ao seu |
+| **Seu modelo** (centros dos dados, cobrindo as 4 combinações de u) | 0,01195 | 0,00757 | correto |
+| Centros com s entre 0 e 30 (fora da faixa dos dados) | 0,01751 | 0,07511 | quase nada é iluminado: o modelo explica quase nada |
+| Sem os 6 centros de troca (só 20 centros) | 0,01201 | 0,01173 | em y, nas linhas de troca da entrada, o erro sobe de 0,006 para 0,221 |
+| 26 centros igualmente espaçados no tempo | 0,01198 | 0,01118 | o sinal é periódico, os centros caem sempre nas mesmas fases e uma combinação de u fica sem centro |
 
-**Lição da última linha:** não importa se a entrada é o tempo em segundos ou o número da amostra. O que importa é que **centros e σ estejam na mesma escala da entrada**. Com o número da amostra, o σ certo seria ≈ 38 amostras (para x), e não 0,77.
+**Lição:** não basta ter centros; eles precisam **cobrir a região onde os dados estão**, incluindo situações raras (as trocas da entrada).
 
-Provavelmente foi isso que aconteceu com o colega: os centros estavam numa escala (perto de 10) e a variável de entrada em outra (perto de 1400).
+**E na RBF no tempo (Seção 3)?** Mesma regra: a entrada é o tempo (0 a 30 s), então os centros vão de 0 a 30 s. Se a entrada fosse o número da amostra (0 a 1500), os centros teriam de ir de 0 a 1500 e σ seria ≈ 38 amostras. Provavelmente foi esse tipo de troca de escala que aconteceu com o colega.
 
 ---
 
@@ -118,79 +114,73 @@ Provavelmente foi isso que aconteceu com o colega: os centros estavam numa escal
 
 ### Sobre σ (a largura)
 
-**"Qual o σ que você usou? Por quê?"**
-> "σ igual ao espaçamento entre os centros: 0,77 s para x e 0,61 s para y. É a regra prática da aula: assim cada gaussiana se sobrepõe com as vizinhas (no centro da vizinha ela ainda vale e^(−1/2) ≈ 0,61), sem que todas fiquem iguais."
+**"Qual σ você usou? Por quê?"**
+> "σ = 0,2 para x e 0,3 para y. Testei de 0,1 a 0,75 e medi o erro na validação. Peguei o menor σ com erro até 2% acima do mínimo."
 
-**"E se mudar o σ?"** (testado com os seus dados, centros fixos)
+**"E se mudar o σ?"** (26 centros fixos, ajuste com todos os dados)
 
-| σ | EMQ de x | EMQ de y | Número de condição de ΦᵀΦ | Maior peso \|w\| (x) |
-|---|---|---|---|---|
-| 0,25 × espaçamento | 0,0130 | 0,0264 | ~10³ | 0,3 |
-| 0,5 × espaçamento | 0,0104 | 0,0067 | ~10⁵ | 0,4 |
-| **1 × espaçamento (usado)** | **0,0097** | **0,0053** | ~10⁶ | 1,7 |
-| 2 × espaçamento | 0,0098 | 0,0053 | ~10¹⁶ | ≈ 166 000 |
-| 4 × espaçamento | 0,0161 | 0,0307 | ~10¹⁷ | ≈ 190 milhões |
+| σ | EMQ x | Maior peso \|w\| (x) | EMQ y | Maior peso \|w\| (y) | Condição de ΦᵀΦ (y) |
+|---|---|---|---|---|---|
+| 0,1 | 0,01279 | 0,8 | 0,02110 | 1,2 | ~10³ |
+| 0,2 | **0,01195** | 3,8 | 0,00799 | 0,8 | ~10⁴ |
+| 0,3 | 0,01192 | 34 | **0,00757** | 4,0 | ~10⁷ |
+| 0,5 | 0,01195 | 497 | 0,00743 | 60 | ~10¹⁰ |
+| 1,0 | 0,01194 | 52 864 | 0,00739 | 12 230 | ~10¹⁴ |
+| 2,0 | 0,01190 | 7,8 milhões | 0,00738 | 1,4 milhão | ~10¹⁸ |
 
-> "σ pequeno demais: as gaussianas não se encostam e a curva fica com 'buracos' entre os centros (o erro sobe). σ grande demais: todas as gaussianas ficam parecidas, a matriz ΦᵀΦ fica quase singular (número de condição 10¹⁶) e os pesos explodem para centenas de milhares. Repare que com 2× o EMQ é quase igual, mas os pesos ficam absurdos e instáveis: pequenas mudanças nos dados mudariam tudo. Por isso σ = espaçamento é a escolha segura."
+> "Com σ pequeno, cada gaussiana só enxerga uma região minúscula e sobram 'buracos' entre os centros: o erro sobe. Com σ grande, o erro quase não muda, mas as gaussianas ficam todas parecidas, a matriz ΦᵀΦ fica quase singular e os pesos explodem para milhões. Esses pesos são instáveis: uma pequena mudança nos dados mudaria tudo. Por isso escolhi o menor σ que já dá o erro mínimo."
 
 **"Qual a unidade de σ?"**
-> "A mesma da entrada: segundos. σ e os centros vivem no eixo do tempo."
+> "A mesma das entradas do modelo: a unidade da saída (s) e da entrada (u), que aqui estão na mesma escala, de −1 a 1."
+
+**"Por que não padronizou (z-score) os dados?"**
+> "Porque as 4 entradas já estão numa escala parecida: s entre −0,8 e 0,7, u entre −1 e 1. Padronizar não mudaria muito e acrescentaria uma etapa."
 
 ### Sobre os centros
 
-**"Por que centros igualmente espaçados?"**
-> "Porque o sinal oscila do mesmo jeito ao longo de todo o tempo, então não há uma região que precise de mais detalhe que outra. Se houvesse, por exemplo, uma mudança brusca num trecho, valeria concentrar mais centros ali."
+**"Por que tirar os centros dos próprios dados e não fazer uma grade regular?"**
+> "Testei a grade. Os dados ficam concentrados perto da diagonal s[n−1] ≈ s[n−2] (amostras vizinhas são quase iguais), então uma grade põe muitos centros onde não há dados. Essas gaussianas ficam sem informação e a matriz fica quase singular. Pegando centros dos dados, todos ficam onde há informação."
 
-**"Por que não colocar um centro em cada ponto dos dados?"**
-> "Com 1501 centros (um por amostra) e σ pequeno, a curva passa **exatamente** por todos os pontos: o EMQ de treino dá praticamente zero (≈ 10⁻²⁸). Mas aí ela copia o ruído inteiro, que é exatamente o que eu quero remover. Seria sobreajuste total."
+**"Por que não um centro em cada ponto dos dados?"**
+> "Seriam 1499 centros para 1499 equações: a curva passaria exatamente por todos os pontos, copiando o ruído (sobreajuste), e a matriz ficaria quase singular."
 
-**"Existe outro jeito de escolher os centros?"**
-> "Sim: sortear pontos dos próprios dados ou usar agrupamento (k-means), que coloca os centros onde há mais dados. Aqui o espaçamento uniforme é suficiente, porque os dados estão distribuídos uniformemente no tempo (uma amostra a cada 0,02 s)."
+**"Quantas gaussianas influenciam cada previsão?"**
+> "Poucas. Num instante típico de x, o centro mais próximo está a 0,07 de distância e vale 0,93; cerca de 8 gaussianas valem mais que 0,1. Em y, cerca de 3. As distantes valem praticamente zero."
 
-**"Quantas gaussianas influenciam cada ponto?"**
-> "Em t = 15 s, por exemplo, 6 gaussianas valem mais que 0,01 e 4 valem mais que 0,1. Cada ponto da curva é a combinação de umas 4 a 6 gaussianas próximas; as mais distantes praticamente não contribuem (a 3σ do centro a gaussiana já vale só 0,011)."
+**"Uma gaussiana com u = +1 influencia os dados com u = −1?"**
+> "Não. A diferença de u entre +1 e −1 é 2 em cada coordenada de u, então a distância é grande e a gaussiana vale ≈ 10⁻²². Na prática o modelo funciona como **dois modelos**, um para a entrada em +1 e outro para −1, mais os centros de troca. Por isso precisei de centros para cada combinação de u."
 
-### Sobre M (o número de gaussianas)
-
-**"Por que x e y têm M diferentes?"**
-> "Porque a validação foi feita separadamente para cada sinal. y é menos ruidoso e tem picos mais definidos, então aproveita um pouco mais de detalhe (50). x é muito ruidoso: acima de 40 as gaussianas extras já começam a seguir o ruído e o erro de validação sobe."
-
-**"E se usar 200 gaussianas?"**
-> "O erro de treino cai, mas o de validação sobe (em x, de 0,0100 para 0,0109). A curva começa a ondular para seguir o ruído. Menor erro de treino não quer dizer modelo melhor."
-
-**"Por que testou de 20 a 200, de 10 em 10?"**
-> "Com menos de 20, os centros ficam a mais de 1,5 s de distância, longe demais para seguir uma oscilação de período 2 s. Acima de 200 o erro de validação já estava subindo. De 10 em 10 basta, porque a curva de validação é quase plana perto do mínimo."
+**"Por que x e y têm o mesmo número de centros e σ diferentes?"**
+> "O número de centros por estado foi testado nas duas saídas e 10 foi o melhor nas duas. O σ foi escolhido separadamente: y varia numa faixa maior (−0,78 a 0,69) que x (−0,42 a 0,41), então precisa de gaussianas um pouco mais largas."
 
 ### Sobre os pesos e a matriz
 
 **"Qual o tamanho da matriz Φ?"**
-> "1501 × 41 para x (uma linha por amostra; uma coluna de 1s mais uma coluna por gaussiana) e 1501 × 51 para y. Ou seja, 1501 equações para 41 incógnitas: um sistema sobredeterminado, resolvido por mínimos quadrados."
+> "1499 × 27: uma linha para cada instante de n = 2 até 1500, uma coluna de 1s e uma coluna por gaussiana. São 1499 equações para 27 incógnitas, resolvidas pela equação normal."
 
-**"O que é o w₀? Por que ele é −0,93 se o sinal tem média perto de zero?"**
-> "w₀ é o termo constante (a coluna de 1s). Ele não é a média do sinal sozinho porque as gaussianas se sobrepõem: a soma de todas elas no meio do intervalo dá aproximadamente uma constante (≈ 2,5). Então w₀ e os outros pesos se compensam. O que importa é a soma final, não cada peso isolado."
+**"Por que alguns pesos vizinhos são grandes e de sinais opostos?"** (ex.: em x, w₂ = −1,79 e w₃ = 3,79)
+> "Porque os centros c₂ e c₃ estão muito próximos e as gaussianas deles se sobrepõem. Os pesos se compensam: o que importa é a soma final, não cada peso isolado."
 
-**"O que significa um peso negativo?"**
-> "Que aquela gaussiana 'puxa a curva para baixo' perto do seu centro. A curva final é a soma de sinos para cima (pesos positivos) e para baixo (pesos negativos)."
+**"O que é o w₀?"**
+> "O termo constante (coluna de 1s). Ele ajusta o nível médio da resposta. Também é o que faz a regressão medido × ajustado dar inclinação 1 e intercepto 0 exatos."
 
 **"O modelo RBF é linear ou não linear?"**
-> "Não linear no tempo (as gaussianas são curvas), mas linear nos pesos. Por isso os pesos saem de um sistema linear (a equação normal), sem precisar de iterações."
+> "Não linear nas entradas (por causa das gaussianas), mas linear nos pesos. Por isso os pesos saem da mesma equação normal do MMQ, sem iterações."
 
 **"A sua gaussiana tem 2σ² no denominador. Por quê?"**
-> "É a forma usada no material da disciplina: φ = exp(−(t − c)² / (2σ²)). Com o 2, σ tem o mesmo significado do desvio padrão de uma distribuição normal. Algumas referências usam só σ², o que só muda a escala de σ, não o método."
+> "É a forma do material da disciplina: φ = exp(−‖z − c‖² / (2σ²)). Com o 2, σ tem o significado de desvio padrão. Usar só σ² mudaria a escala de σ, não o método."
 
-### Sobre a escolha de fazer a RBF no tempo
+### Sobre a RBF no tempo (se ele perguntar da Seção 3)
 
-**"Por que a entrada da gaussiana é o tempo e não y[n−1], y[n−2], u[n], u[n−1]?"**
-> "Porque usei a RBF como **filtro**: ela encontra a curva suave por trás do ruído (o enunciado fala em 'identificação da dinâmica **ou** filtragem'). O modelo com y[n−1], y[n−2], u[n], u[n−1] eu fiz com o MMQ, que é a parte da identificação da dinâmica."
-
-**"E se fosse uma RBF com esses regressores, onde ficariam os centros?"**
-> "No espaço dos regressores: cada centro seria um vetor de 4 números (um valor de y[n−1], um de y[n−2], um de u[n] e um de u[n−1]). Pela mesma regra, eles teriam de ficar na faixa desses valores, por exemplo, de −0,8 a 0,7 para y e em −1 ou +1 para u. Colocá-los em 0 a 30 não faria sentido: é exatamente o tipo de erro da pergunta do colega."
+**"Quantas gaussianas e onde estão os centros na RBF no tempo?"**
+> "40 para x e 50 para y, escolhidas por validação. Os centros estão no eixo do tempo, de 0 a 30 s, igualmente espaçados: a cada 0,77 s em x e a cada 0,61 s em y. σ é igual ao espaçamento, a regra da aula, para os sinos vizinhos se sobreporem sem ficarem iguais. Ela serve de preparação e de referência; o modelo do enunciado é o da Seção 4."
 
 ---
 
 ## 6. Dicas de postura na apresentação
 
-- **Responda com o número primeiro**, depois com o porquê: "40 gaussianas, escolhi por validação porque…".
-- **Aponte a linha do código** enquanto fala (a tabela da seção 3 tem as linhas).
-- Se não souber algo, diga o que você **sabe** e como **testaria**: "não testei isso, mas daria para verificar mudando o σ na linha 85 e comparando o EMQ".
-- Lembre-se da regra principal: **centros e σ sempre na mesma escala da entrada da gaussiana**. Quase toda pergunta sobre centros volta para isso.
+- **Responda com o número primeiro**, depois o porquê: "26 gaussianas, 10 por estado da entrada mais 3 por tipo de troca; testei 5, 10, 15 e 20 e 10 foi o melhor".
+- **Aponte a linha do código** enquanto fala (tabela da seção 3).
+- **Mostre o gráfico dos centros** (Seção 4.4): ele responde "onde estão os centros" visualmente.
+- Se não souber algo, diga o que você **sabe** e como **testaria**: "não testei isso, mas daria para verificar mudando o σ na linha 180 e comparando o EMQ".
+- Regra principal: **os centros têm que estar onde os dados estão, na mesma escala da entrada da gaussiana.**
