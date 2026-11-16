@@ -1,160 +1,303 @@
 # Guia de estudo: Projeto U2 (Ajuste de Curvas)
 
-Este guia é **para você estudar**, não para entregar. Ele explica o raciocínio por trás do notebook `Projeto_U2_Ajuste_de_Curvas.ipynb` (e do script `projeto_u2.py`, que tem o mesmo código) e traz as perguntas que o professor provavelmente vai fazer, já com as respostas. As perguntas específicas sobre gaussianas, centros e σ estão no `PERGUNTAS_SOBRE_RBF.md`.
+Este guia é para você **aprender do zero** o que o projeto faz. Ele não é para entregar.
+
+O projeto existe em dois formatos, **com o mesmo código**:
+- `projeto_u2.py`: o script, que é o que você vai mostrar ao professor;
+- `Projeto_U2_Ajuste_de_Curvas.ipynb`: o notebook, com o mesmo código dividido em células, os textos explicativos, os gráficos já prontos e as conclusões completas.
+
+No `.py`, cada parte começa com um comentário `# ==================== 4.3 ... ====================`, com o mesmo número de seção do notebook. Assim, tudo o que este guia diz sobre a "Seção 4.3" vale para os dois arquivos.
+
+**Ordem de leitura sugerida:**
+1. Parte 1 (a história do projeto), 5 minutos.
+2. Parte 2 (os conceitos), com calma. É a parte mais importante.
+3. Parte 3 (o notebook seção por seção), com o notebook aberto ao lado.
+4. Parte 4 (resultados) e Parte 5 (resumo para a apresentação).
+5. Depois, o arquivo `PERGUNTAS_DO_PROFESSOR.md`, para treinar as respostas.
 
 ---
 
-## 1. O projeto em 30 segundos (para abrir a apresentação)
+## Parte 1. A história do projeto, em linguagem simples
 
-> "O sistema tem uma entrada `u` (onda quadrada) e duas saídas medidas com ruído, `x` e `y`. O enunciado pede o modelo `s[n] = f(s[n−1], s[n−2], u[n], u[n−1])`. Fiz esse modelo de duas formas:
-> **(1) RBF:** f é uma soma de 26 gaussianas, cada uma com centro num ponto de 4 dimensões tirado dos próprios dados.
-> **(2) MMQ:** f é linear, `s[n] = a1·s[n−1] + a2·s[n−2] + b0·u[n] + b1·u[n−1]`.
-> Os pesos dos dois saem da mesma equação normal. Avaliei com EMQ, regressão linear (medido × ajustado) e Pearson. Na predição um passo à frente os dois empatam, o que mostra que a relação é praticamente linear. Na simulação livre, em que o modelo só recebe a entrada, a RBF foi melhor em y (erro 28% menor)."
+Existe um sistema físico (pode ser um motor, um circuito, um tanque...). A gente **mexe nele** com um sinal de entrada `u` e **mede** duas coisas que ele produz, as saídas `x` e `y`. A entrada é uma onda quadrada: fica em +1 por 1 segundo, depois em −1 por 1 segundo, e assim por diante. As medições têm **ruído**: os pontos ficam "espalhados" em volta do valor verdadeiro, como uma balança que oscila.
 
-Antes disso, como preparação, mostro a RBF com uma entrada só (o tempo): ela filtra o ruído e serve de referência visual.
+O professor quer um **modelo matemático**: uma fórmula que, sabendo o que aconteceu antes, diga o que o sistema vai fazer agora. Ele já definiu o formato da fórmula:
 
-## 2. Estrutura do notebook
+```
+y[n] = f( y[n−2], y[n−1], u[n], u[n−1] )
+```
 
-| Seção | O que faz | Item da avaliação |
+Em palavras: *o valor da saída agora depende dos dois valores anteriores da saída e dos valores atual e anterior da entrada.* O `n` é o número da amostra (o "instante"). `y[n−1]` é a amostra imediatamente anterior, 0,02 s antes.
+
+O projeto descobre a função `f` de dois jeitos:
+- **RBF:** `f` é uma soma de "sininhos" (gaussianas). É uma função flexível, que pode fazer curvas.
+- **MMQ:** `f` é uma conta linear simples: `a1·y[n−1] + a2·y[n−2] + b0·u[n] + b1·u[n−1]`.
+
+Depois mede o quanto cada modelo acerta (EMQ e Pearson) e compara os dois.
+
+**Resultado em uma frase:** os dois acertam praticamente igual ao prever um passo à frente. Quando o modelo precisa andar sozinho (simulação livre), a RBF fica um pouco melhor na saída `y`. Na saída `x`, o ruído é tão grande que os dois modelos ficam fracos.
+
+---
+
+## Parte 2. Os conceitos, do zero
+
+### 2.1 Sinal, amostra e ruído
+- **Sinal:** uma grandeza que muda com o tempo (a saída `x`, por exemplo).
+- **Amostra:** o valor do sinal medido num instante. Aqui há uma amostra a cada 0,02 s, de 0 a 30 s, ou seja, 1501 amostras.
+- **Ruído:** a parte aleatória da medição. Ele faz os pontos "pularem" em volta do valor verdadeiro. Nenhum modelo consegue prever o ruído, porque ele é aleatório. Por isso o erro nunca chega a zero.
+
+### 2.2 Modelo e ajuste de curvas
+Um **modelo** é uma fórmula com alguns números ajustáveis (os **parâmetros** ou **pesos**). **Ajustar** o modelo é escolher esses números para a fórmula ficar o mais perto possível dos dados. É o mesmo que você viu nas aulas com a reta `Y = β0 + β1·X`: os parâmetros β0 e β1 são escolhidos para a reta passar "pelo meio" dos pontos.
+
+### 2.3 Método dos Mínimos Quadrados (MMQ)
+"Passar pelo meio dos pontos" precisa de uma definição exata. O MMQ define assim: **escolha os parâmetros que tornam a soma dos erros ao quadrado a menor possível.** Erro = valor medido − valor do modelo. Elevamos ao quadrado para o erro negativo não cancelar o positivo e para punir mais os erros grandes.
+
+### 2.4 Matriz de projeto e equação normal
+Quando o modelo é uma soma de "ingredientes" multiplicados por pesos, dá para escrever tudo de uma vez com matrizes:
+
+```
+valores previstos = A · w
+```
+
+- `A` é a **matriz de projeto**: uma **linha para cada amostra** e uma **coluna para cada ingrediente** do modelo.
+- `w` é o vetor de pesos.
+
+Os pesos que minimizam o erro quadrático são a solução de um sistema linear chamado **equação normal**:
+
+```
+(Aᵀ A) · w = Aᵀ · alvo
+```
+
+**De onde vem?** O erro quadrático é uma função dos pesos com formato de "tigela" (uma parábola em várias dimensões). O ponto mais baixo da tigela é onde a derivada (o gradiente) vale zero. Derivando e igualando a zero, sai exatamente essa equação.
+
+**Por que `Aᵀ A`?** A matriz `A` tem 1499 linhas e poucas colunas, então `A · w = alvo` tem mais equações que incógnitas e não tem solução exata (sistema **sobredeterminado**). Multiplicando por `Aᵀ`, o sistema vira quadrado (tamanho colunas × colunas) e passa a ter solução: a de menor erro quadrático.
+
+No notebook, a função `equacao_normal(A, alvo)` faz isso com `np.linalg.solve`, que resolve o sistema diretamente, sem calcular a inversa. É mais rápido e mais preciso do que `inv`, e o resultado é o mesmo da fórmula `w = (AᵀA)⁻¹ Aᵀ alvo`.
+
+**Ponto-chave:** o projeto usa a **mesma** função `equacao_normal` para a RBF e para o MMQ. A única diferença entre os dois é o que vai nas colunas da matriz.
+
+### 2.5 Regressores (as entradas do modelo)
+**Regressores** são os valores que entram no modelo para ele fazer a previsão. Aqui são 4: `s[n−1]`, `s[n−2]`, `u[n]` e `u[n−1]` (onde `s` é `x` ou `y`). O **alvo** é o valor que queremos prever, `s[n]`. Cada instante `n` vira uma linha: 4 regressores e 1 alvo.
+
+### 2.6 Gaussiana e RBF
+Uma **gaussiana** é uma função em forma de sino:
+
+```
+φ(z) = exp( −distância(z, c)² / (2σ²) )
+```
+
+- Vale **1** quando a entrada `z` está exatamente no **centro** `c`.
+- Vai caindo até quase **0** quando `z` se afasta do centro.
+- **σ (sigma)** é a **largura** do sino. σ grande = sino largo, que "enxerga" longe. σ pequeno = sino estreito.
+
+Uma **RBF** (Função de Base Radial) soma vários sinos, cada um com seu centro e seu peso:
+
+```
+previsão = w0 + w1·φ1(z) + w2·φ2(z) + ... + wM·φM(z)
+```
+
+Imagine cada gaussiana como uma **lanterna** apontada para um ponto (o centro). O peso diz quanto aquela lanterna "puxa" a previsão para cima ou para baixo. Onde há várias lanternas, a soma delas desenha uma curva. Onde não há nenhuma lanterna, o modelo não sabe o que fazer.
+
+No nosso projeto, a entrada `z` tem **4 números** (os 4 regressores), então cada centro também tem 4 números, e a distância é calculada nas 4 dimensões: soma das 4 diferenças ao quadrado.
+
+**Por que a RBF usa a mesma equação normal do MMQ?** Porque, depois de escolher centros e σ, cada gaussiana vira só uma **coluna de números** na matriz. O modelo continua sendo "matriz × pesos". Ele é **não linear nas entradas** (por causa do sino), mas **linear nos pesos**. Isso basta para usar a equação normal.
+
+### 2.7 Validação, subajuste e sobreajuste
+- **Subajuste (underfitting):** modelo simples demais. Erra nos dados de ajuste e em dados novos.
+- **Sobreajuste (overfitting):** modelo flexível demais. Passa a "decorar" o ruído: erra pouco nos dados de ajuste, mas erra mais em dados novos.
+- **Validação:** separamos uma parte dos dados que o modelo **não vê** durante o ajuste e medimos o erro nela. É assim que escolhemos as configurações (número de centros e σ) sem cair no sobreajuste.
+- **Parcimônia:** entre modelos com desempenho parecido, preferir o mais simples. Essa regra está no material do mini projeto da disciplina: *"escolha o modelo mais simples cujo erro de validação esteja próximo do mínimo"*.
+
+### 2.8 EMQ (Erro Médio Quadrático)
+```
+EMQ = média de (medido − previsto)²
+```
+Quanto menor, melhor. A raiz do EMQ (√EMQ) é o "erro típico", na mesma unidade do sinal. Exemplo: EMQ = 0,0075 → √EMQ ≈ 0,087, ou seja, o modelo erra tipicamente uns 0,09 para cima ou para baixo.
+
+### 2.9 Correlação de Pearson (r)
+Mede se dois sinais **sobem e descem juntos**. Vai de −1 a +1:
+- r = 1: andam juntos perfeitamente (relação linear perfeita);
+- r = 0: não têm relação linear;
+- r = −1: um sobe quando o outro desce.
+
+**r²** é a fração da variação dos dados que o modelo explica. r = 0,954 → r² ≈ 0,91 → o modelo explica 91% da variação.
+
+**EMQ e r medem coisas diferentes:** o EMQ mede o **tamanho** do erro; o r mede se a **forma** foi capturada. Por isso o enunciado pede os dois.
+
+### 2.10 Regressão linear entre real e ajustado
+Fazemos um gráfico com o valor **ajustado** no eixo horizontal e o **medido** no vertical, e passamos uma reta pelos pontos (a mesma regressão linear da aula, com o sistema 2×2). Se o modelo for bom e não tiver tendência de errar sempre para o mesmo lado (**viés**), a reta fica perto de `medido = 0 + 1·ajustado`: **inclinação 1 e intercepto 0**.
+
+### 2.11 Predição um passo à frente × simulação livre
+- **Um passo à frente:** para prever `s[n]`, o modelo recebe os valores **medidos** de `s[n−1]` e `s[n−2]`. É como prever o tempo de amanhã sabendo o de hoje.
+- **Simulação livre:** o modelo recebe **só a entrada `u`** e usa as **próprias previsões** como "passado". É como prever o tempo do mês inteiro sem olhar pela janela. É bem mais difícil, porque os erros se acumulam. Esse teste mostra se o modelo realmente aprendeu como o sistema funciona, que é a justificativa do projeto ("um modelo que simule a dinâmica do sistema").
+
+---
+
+## Parte 3. O notebook, seção por seção
+
+Abra o `projeto_u2.py` (ou o notebook) e acompanhe. No notebook, cada seção tem um texto explicativo antes do código.
+
+**Mapa de linhas do `projeto_u2.py`**, para apontar na tela enquanto explica:
+
+| Linha | O que é |
+|---|---|
+| 58 | `emq`: Erro Médio Quadrático |
+| 62 | `pearson`: correlação de Pearson |
+| 67 | `regressao_linear`: reta pelo sistema 2×2 da aula |
+| 74 | `equacao_normal`: resolve (AᵀA)·w = Aᵀ·alvo. **Serve para a RBF e para o MMQ** |
+| 84 | `montar_regressores`: as 4 entradas [s[n−1], s[n−2], u[n], u[n−1]] e o alvo s[n] |
+| 99–104 | `matriz_phi`: matriz das gaussianas. Linha 102 = distância ao quadrado; linha 103 = fórmula da gaussiana |
+| 106 | `escolher_centros`: onde ficam os centros |
+| 122 | sorteio da validação (20%, semente fixa) |
+| 126–127 | números de centros e valores de σ testados |
+| 139–140 | regra da parcimônia (limite de 2% e escolha do mais simples) |
+| 164–166 | ajuste final da RBF (centros e pesos) |
+| 219 | `grafico_regressao`: regressão, Pearson e EMQ de uma vez |
+| 247 | MMQ: `theta_x = equacao_normal(Z_x, alvo_x)` |
+| 290 | `simular_livre`: o modelo usa as próprias previsões como passado |
+| fim do arquivo | resumo das conclusões (em comentário) |
+
+### Introdução
+Diz o objetivo, descreve as colunas do arquivo, mostra o modelo do enunciado e tem uma **tabela que liga cada item da avaliação à seção do notebook**. Use essa tabela na apresentação.
+
+A primeira célula de código importa as bibliotecas (`csv` para ler o arquivo, `numpy` para contas com vetores e matrizes, `matplotlib` para gráficos) e define as cores dos gráficos.
+
+### Seção 1. Leitura dos dados
+- O arquivo usa vírgula como separador decimal (`"0,02"`). Por isso cada valor passa por `valor.replace(",", ".")` antes de virar número com `float(...)`.
+- `dados[:, 0]` significa "todas as linhas, coluna 0". Assim separamos `t`, `u`, `x` e `y`.
+- O gráfico mostra a entrada (onda quadrada) e as duas saídas com ruído. Repare que `x` é muito mais ruidosa que `y`.
+
+### Seção 2. Ferramentas
+Quatro funções curtas, escritas à mão (o professor gosta de ver que você não usou função pronta):
+
+| Função | O que faz | Linha principal |
 |---|---|---|
-| 1 | Lê o CSV e mostra os sinais | — |
-| 2 | Funções: EMQ, Pearson, regressão, matriz RBF, equação normal | — |
-| 3 | **Preparação:** RBF com 1 entrada (tempo) = filtro e referência | — |
-| 4 | **RBF dinâmica** com 4 entradas (fórmula do enunciado) | Etapas 01, 02, 03 (RBF, EMQ, regressão, Pearson) |
-| 5 | **MMQ** (modelo linear, mesma fórmula) | Etapa 04 (repetir com MMQ) |
-| 6 | Simulação livre dos dois modelos | complemento das conclusões |
-| 7 | Tabela comparativa | — |
-| 8 | Conclusões | Conclusões |
+| `emq(real, ajustado)` | média dos erros ao quadrado | `np.sum(erro ** 2) / len(erro)` |
+| `pearson(a, b)` | fórmula do r | subtrai as médias, multiplica e divide pelas raízes |
+| `regressao_linear(xr, yr)` | reta α + β·x pelo sistema 2×2 da aula | `np.linalg.solve(A, B)` |
+| `equacao_normal(A, alvo)` | resolve (AᵀA)·w = Aᵀ·alvo | `np.linalg.solve(A.T @ A, A.T @ alvo)` |
 
-## 3. Resultados principais (decore estes números)
+O `@` é a multiplicação de matrizes em Python, e `A.T` é a transposta de A.
+
+No fim da célula há uma **conferência**: o Pearson feito à mão é comparado com o do NumPy (`np.corrcoef`). Os dois dão 0,993371, o que mostra que a função está certa.
+
+### Seção 3. Montando os regressores
+A função `montar_regressores(s, u)` cria a matriz `Z` (1499 linhas × 4 colunas) e o vetor `alvo`. O truque são as **fatias**:
+
+| Fatia | Significa | Por quê |
+|---|---|---|
+| `s[2:]` | s[n] (alvo) | do índice 2 até o fim |
+| `s[1:-1]` | s[n−1] | um atrás |
+| `s[:-2]` | s[n−2] | dois atrás |
+| `u[2:]` | u[n] | mesmo instante do alvo |
+| `u[1:-1]` | u[n−1] | um atrás |
+
+Todas têm 1499 elementos, então a linha k de cada uma fala do mesmo instante. Começa em n = 2 porque o primeiro alvo precisa de dois valores anteriores. A célula imprime a primeira linha e confere com os valores originais, para você ver que o alinhamento está certo.
+
+### Seção 4. RBF (vale as Etapas 01, 02 e 03)
+
+**4.1 e 4.2: as funções da RBF**
+
+`matriz_phi(Z, centros, sigma)` monta a matriz Φ:
+- começa com uma matriz de 1s (`np.ones`): a coluna 0 fica com 1s e serve para o peso w0 (o termo constante);
+- para cada centro `j`, calcula a distância ao quadrado de **todas** as linhas até esse centro (`np.sum((Z - centros[j]) ** 2, axis=1)`) e aplica a fórmula da gaussiana. Isso vira a coluna `j + 1`.
+
+`escolher_centros(Z, por_estado, por_troca=3)` decide onde ficam os centros. **Esta é a decisão mais importante do projeto** e a que o professor mais cobra.
+1. A entrada `(u[n], u[n−1])` só tem 4 combinações: (+1, +1) e (−1, −1), com a entrada parada (≈ 735 linhas cada), e (+1, −1) e (−1, +1), nos instantes de troca (só 14 e 15 linhas).
+2. Para cada combinação, pega as linhas daquela combinação, **ordena pelo valor de s[n−1]** e escolhe linhas **igualmente espaçadas** nessa ordem. Assim os centros vão do menor ao maior valor da saída.
+3. Os centros são **linhas dos próprios dados**, então ficam automaticamente onde os dados estão, na mesma escala.
+4. Usa `por_estado` centros para cada combinação parada e 3 para cada combinação de troca (há poucas linhas de troca).
+
+**Por que separar por combinação de `u`?** Porque `u` só vale +1 ou −1. Um centro com u = +1 fica a uma distância enorme de qualquer linha com u = −1, e a gaussiana dele vale praticamente zero lá. Se uma combinação ficasse sem centro, o modelo não teria nenhuma "lanterna" para ela.
+
+**4.3: escolha do número de centros e de σ (validação)**
+- Sorteia 20% das linhas para validação, com semente fixa (`default_rng(0)`), então o sorteio é sempre o mesmo.
+- Testa 4 quantidades de centros (5, 10, 15 e 20 por estado, ou seja, M = 16, 26, 36 e 46) e 6 valores de σ (0,1 a 0,75). Para cada combinação, ajusta no treino e mede o EMQ na validação.
+- **Regra da parcimônia:** calcula `limite = 1,02 × menor erro` e escolhe o **primeiro** modelo que fica abaixo desse limite, olhando primeiro o menor número de centros e depois o menor σ. É isso que `np.argwhere(tabela <= limite)[0]` faz: `argwhere` lista as posições na ordem (linha 0 primeiro, e dentro dela coluna 0 primeiro), e a linha 0 é a de menos centros.
+- **Resultado:** x → 16 centros e σ = 0,2; y → 16 centros e σ = 0,5.
+
+**Por que preferir σ pequeno?** Com σ grande, todas as gaussianas ficam parecidas, as colunas de Φ ficam quase iguais, a matriz ΦᵀΦ fica quase impossível de resolver com precisão (**mal condicionada**) e os pesos ficam enormes e instáveis.
+
+**Por que y precisou de σ maior que x?** y varia numa faixa maior (−0,78 a 0,69, contra −0,42 a 0,41 de x). Com só 5 centros por estado espalhados nessa faixa, os centros de y ficam mais distantes entre si, e o sino precisa ser mais largo para os vizinhos se sobreporem. É a regra prática do material da disciplina: σ da ordem do espaçamento entre centros.
+
+**4.4: ajuste final e parâmetros livres**
+- Com as configurações escolhidas, escolhe os centros usando **todas** as linhas e calcula os pesos pela equação normal. A validação só serviu para escolher as configurações; para os pesos finais, usar todos os dados dá a estimativa mais precisa.
+- Imprime: número de gaussianas (16), σ, número de pesos (17 = w0 + 16), tamanho da matriz Φ (1499 × 17), w0 e alguns centros com seus pesos. **Esses são os parâmetros livres do modelo RBF** que o enunciado pede.
+- O gráfico mostra os centros (triângulos) em cima da nuvem de dados, no plano (s[n−1], s[n−2]). É a resposta visual para "onde estão os centros?".
+
+**4.5: Etapas 01 e 02**
+Gráfico do medido (pontos) com o ajustado pela RBF (linha), e o EMQ de cada saída. A linha é serrilhada porque recebe os valores medidos (com ruído) como entrada.
+
+**4.6: Etapa 03**
+A função `grafico_regressao` faz as três coisas de uma vez: regressão linear medido × ajustado, Pearson e EMQ, e desenha o gráfico com a faixa ±√EMQ. O resultado da RBF é inclinação 1 e intercepto 0 exatos. Isso não é coincidência: acontece sempre que o modelo tem termo constante (w0) e foi ajustado pelo MMQ.
+
+### Seção 5. MMQ (vale a Etapa 04)
+- O modelo é `s[n] = a1·s[n−1] + a2·s[n−2] + b0·u[n] + b1·u[n−1]`. A matriz de projeto é a própria `Z`: os 4 regressores entram **direto** nas colunas, sem gaussianas.
+- `theta_x = equacao_normal(Z_x, alvo_x)` calcula os 4 parâmetros. **Esses são os parâmetros livres do MMQ.**
+- `a1` e `a2` medem quanto o passado da saída influencia o presente (a "memória" do sistema). `b0` e `b1` medem o efeito da entrada.
+- Depois repete os gráficos, o EMQ, a regressão e o Pearson, igual à RBF.
+- A inclinação e o intercepto saem só **quase** 1 e **quase** 0, porque o modelo do enunciado não tem termo constante.
+
+### Seção 6. Simulação livre
+A função `simular_livre(prever, u, s_medido)`:
+1. copia só as duas primeiras amostras medidas;
+2. daí em diante, para cada n, monta `z = [s_sim[n−1], s_sim[n−2], u[n], u[n−1]]` usando as **próprias previsões** e calcula `s_sim[n]`.
+
+`prever_rbf` e `prever_mmq` criam a função de previsão de cada modelo, para a mesma `simular_livre` servir aos dois. No gráfico:
+- **y:** os dois modelos reproduzem bem a forma da resposta, e a RBF acerta um pouco melhor os picos;
+- **x:** os dois viram praticamente uma onda quadrada pequena. Os modelos não aprenderam a forma da resposta de x.
+
+### Seção 7. Tabela comparativa
+Junta todos os números numa tabela.
+
+### Seção 8. Conclusões
+São 7 conclusões. Leia todas e entenda cada uma. Elas valem 2 pontos.
+
+---
+
+## Parte 4. Resultados (os números que você precisa saber)
 
 | Modelo | Saída | EMQ | Pearson r |
 |---|---|---|---|
-| RBF dinâmica (um passo à frente) | x | 0,0120 | 0,648 |
-| RBF dinâmica (um passo à frente) | y | 0,0076 | 0,954 |
-| MMQ (um passo à frente) | x | 0,0123 | 0,636 |
-| MMQ (um passo à frente) | y | 0,0075 | 0,954 |
-| RBF dinâmica (simulação livre) | x | 0,0149 | 0,528 |
-| RBF dinâmica (simulação livre) | y | 0,0141 | 0,920 |
-| MMQ (simulação livre) | x | 0,0150 | 0,524 |
-| MMQ (simulação livre) | y | 0,0197 | 0,878 |
-| Referência: RBF no tempo (filtro) | x | 0,0098 | 0,725 |
-| Referência: RBF no tempo (filtro) | y | 0,0054 | 0,968 |
+| RBF, um passo à frente | x | 0,0122 | 0,637 |
+| RBF, um passo à frente | y | 0,0075 | 0,954 |
+| MMQ, um passo à frente | x | 0,0123 | 0,636 |
+| MMQ, um passo à frente | y | 0,0075 | 0,954 |
+| RBF, simulação livre | x | 0,0150 | 0,528 |
+| RBF, simulação livre | y | 0,0185 | 0,914 |
+| MMQ, simulação livre | x | 0,0150 | 0,524 |
+| MMQ, simulação livre | y | 0,0197 | 0,878 |
 
-- **RBF dinâmica:** 26 centros por saída, σ = 0,2 (x) e σ = 0,3 (y), 27 pesos (w₀ + 26).
-- **MMQ:** x → a1 = 0,298, a2 = 0,212, b0 = −0,022, b1 = −0,015. y → a1 = 0,488, a2 = 0,465, b0 = −0,016, b1 = 0,043.
-- **RBF no tempo:** 40 gaussianas (x) e 50 (y), centros de 0 a 30 s.
+**RBF:** 16 gaussianas por saída (5 + 5 para a entrada parada, 3 + 3 para as trocas), σ = 0,2 em x e 0,5 em y, 17 pesos.
 
-## 4. Mapa do código (`projeto_u2.py`)
+**MMQ:**
 
-| Linha(s) | O que faz |
-|---|---|
-| 72–77 | `matriz_phi`: monta a matriz das gaussianas. **A mesma função serve para 1 entrada (tempo) e 4 entradas.** Linha 75 = distância ao quadrado; linha 76 = gaussiana |
-| 79–80 | `equacao_normal`: resolve (Aᵀ A) w = Aᵀ alvo. **A mesma função calcula os pesos da RBF no tempo, da RBF dinâmica e do MMQ** |
-| 87–94 | RBF no tempo: centros de 0 a 30 s (linha 88), σ = espaçamento (linha 89) |
-| 96–115 | Escolha do número de gaussianas da RBF no tempo (validação 1 de cada 5) |
-| 151–154 | `montar_regressores`: cada linha z[n] = [s[n−1], s[n−2], u[n], u[n−1]] e alvo s[n] |
-| 156–164 | `escolher_centros`: os 26 centros da RBF dinâmica |
-| 177–192 | Escolha de σ da RBF dinâmica (validação com 20% sorteado) |
-| 203–210 | Ajuste final da RBF dinâmica (centros, pesos, previsão) |
-| 238–257 | Etapas 01 e 02 (gráfico e EMQ da RBF) |
-| 261–284 | Etapa 03 (regressão e Pearson) |
-| 288 | MMQ: `theta_x = equacao_normal(Z_x, alvo_x)` |
-| 330–336 | `simular_livre`: o modelo usa as próprias previsões como passado |
+| Saída | a1 | a2 | b0 | b1 |
+|---|---|---|---|---|
+| x | 0,2984 | 0,2118 | −0,0216 | −0,0150 |
+| y | 0,4876 | 0,4649 | −0,0159 | 0,0426 |
 
-**Truque de fatiamento** (pergunta comum): para `n = 2 … N−1`,
-- `s[2:]` é s[n] (alvo)
-- `s[1:-1]` é s[n−1]
-- `s[:-2]` é s[n−2]
+**Como ler isso:**
+1. Um passo à frente: **empate**. A relação é praticamente linear, então as gaussianas não acrescentam nada.
+2. Simulação livre em y: **RBF um pouco melhor** (erro menor e r maior).
+3. x é sempre pior que y por causa do **ruído**, que em x é quase do tamanho do sinal.
+4. Em x, a memória estimada é baixa (a1 + a2 = 0,51) porque o passado medido tem muito ruído. Por isso a simulação de x vira uma onda quadrada.
 
-Todos têm 1499 elementos, então cada linha fica alinhada no mesmo instante n.
+---
 
-## 5. Perguntas prováveis do professor e respostas
+## Parte 5. Resumo de 1 minuto para abrir a apresentação
 
-### Sobre o modelo e o enunciado
+> "O sistema tem uma entrada `u`, que é uma onda quadrada, e duas saídas medidas com ruído, `x` e `y`. O enunciado pede o modelo `s[n] = f(s[n−1], s[n−2], u[n], u[n−1])`. Fiz esse modelo de duas formas.
+> Com **RBF**, f é uma soma de 16 gaussianas. Cada centro é um ponto de 4 dimensões tirado dos próprios dados, e escolhi o número de centros e o σ por validação.
+> Com **MMQ**, f é linear, com 4 parâmetros.
+> Nos dois casos os pesos saem da mesma equação normal. Avaliei com EMQ, regressão linear entre medido e ajustado, e Pearson.
+> Prevendo um passo à frente, os dois empatam, o que mostra que a relação é praticamente linear. Na simulação livre, em que o modelo só recebe a entrada, a RBF ficou um pouco melhor em y. Em x o ruído é tão grande que os dois ficam fracos."
 
-**P: Qual modelo você implementou?**
-O do enunciado: s[n] = f(s[n−1], s[n−2], u[n], u[n−1]), para x e para y. Com RBF, f é uma soma de gaussianas; com MMQ, f é linear.
+---
 
-**P: Para que serve a Seção 3 (RBF no tempo)?**
-É uma preparação. Mostra a RBF no caso mais simples, com uma entrada, onde dá para desenhar os centros e a soma dos sinos. Ela também filtra o ruído e dá uma curva de referência, a linha preta tracejada dos gráficos. Ela não é o modelo dinâmico, porque não usa a entrada u e só descreve estes 30 s.
+## Parte 6. Como rodar
 
-**P: O que é o modelo do MMQ fisicamente?**
-Uma equação de diferenças de 2ª ordem (modelo ARX). É a versão discreta de uma equação diferencial de 2ª ordem, como um massa-mola-amortecedor ou um circuito RLC. a1 e a2 são a "memória/inércia" e b0, b1 o efeito da entrada.
-
-### Sobre a matemática
-
-**P: Por que o modelo RBF é "linear" se a gaussiana não é?**
-Ele é não linear na entrada, mas **linear nos pesos w**: a saída é Φ·w. Por isso os pesos saem da equação normal, sem iterações, igual ao MMQ.
-
-**P: Deduza a equação normal.**
-Queremos minimizar J(w) = (1/N)·‖Φw − s‖². O gradiente é ∇J = (2/N)·Φᵀ(Φw − s). Igualando a zero: Φᵀ Φ w = Φᵀ s. Como J é uma parábola (quadrática convexa), esse ponto é o mínimo.
-
-**P: Qual a diferença entre a matriz da RBF e a do MMQ?**
-No MMQ, a matriz tem os 4 regressores direto nas colunas (1499 × 4). Na RBF, cada coluna é uma gaussiana aplicada aos 4 regressores, mais uma coluna de 1s (1499 × 27). A equação normal é a mesma.
-
-**P: Por que `np.linalg.solve` e não `np.linalg.inv`?**
-`solve` resolve o sistema direto. É mais rápido e mais preciso do que calcular a inversa e multiplicar. O resultado é o mesmo da fórmula w = (Φᵀ Φ)⁻¹ Φᵀ s.
-
-**P: Por que `solve` funciona se a matriz é 1499 × 27 (não quadrada)?**
-Porque não resolvo Φ w = s, que não tem solução exata (há mais equações que incógnitas). Resolvo Φᵀ Φ w = Φᵀ s, e Φᵀ Φ é quadrada (27 × 27).
-
-### Sobre as métricas
-
-**P: O que é o EMQ e qual o valor "bom"?**
-É a média dos erros ao quadrado. Com dados ruidosos, o melhor possível é mais ou menos a **variância do ruído**. A RBF no tempo mostra esse limite (≈ 0,0098 em x e 0,0054 em y). Os modelos dinâmicos ficam um pouco acima porque usam valores passados ruidosos como entrada.
-
-**P: O que significa o r de Pearson?**
-Mede o quanto dois sinais variam juntos de forma linear (−1 a 1). r² é a fração da variação explicada: 0,954² ≈ 0,91, ou seja, a RBF explica 91% da variação de y.
-
-**P: Por que a regressão deu inclinação 1 e intercepto 0 exatos na RBF?**
-É uma propriedade do MMQ com termo constante (w₀): o erro fica ortogonal à coluna de 1s e à curva ajustada, então a melhor reta medido × ajustado é `0 + 1·ajustado`. O ajuste não tem viés. O modelo MMQ do enunciado não tem termo constante, por isso deu "quase" 1 e "quase" 0.
-
-**P: Para que serve a faixa ±√EMQ?**
-Mostra o erro típico em torno da reta. A maioria dos pontos fica dentro dela.
-
-**P: Por que x tem r tão menor que y?**
-Relação sinal/ruído. Em x, o ruído (≈ 0,11) é do tamanho do sinal (≈ 0,1 a 0,25). Em y, o sinal (≈ 0,4 a 0,7) é bem maior que o ruído. Não é falha do método.
-
-### Sobre os resultados
-
-**P: Por que a RBF não ganhou do MMQ na predição um passo à frente?**
-Porque, com esse ruído, a relação entre o passado e o próximo valor é praticamente linear. As gaussianas dão flexibilidade para curvas, mas não há curvatura relevante para capturar. Na validação também empatam (x: 0,0131 contra 0,0133; y: 0,0066 contra 0,0067). Conclusão: para esse uso, o modelo linear com 4 parâmetros basta.
-
-**P: Então para que serve a RBF?**
-Na simulação livre de y ela foi melhor: EMQ 0,0141 contra 0,0197 (28% menor) e r 0,920 contra 0,878. Ela reproduz melhor a forma dos picos. Ou seja, a parte não linear importa quando o modelo precisa andar sozinho.
-
-**P: Qual a diferença entre predição um passo à frente e simulação livre?**
-Na predição um passo à frente, o modelo recebe os valores **medidos** de s[n−1] e s[n−2] e só prevê o próximo. Na simulação livre, recebe só a entrada u e usa as **próprias previsões** como passado. A simulação livre é mais difícil, porque os erros se acumulam.
-
-**P: Por que as curvas um passo à frente são serrilhadas?**
-Porque elas usam os valores medidos (com ruído) de s[n−1] e s[n−2] como entrada; parte do ruído passa para a previsão.
-
-**P: Por que a simulação de x vira uma onda quadrada?**
-Porque os parâmetros ficaram enviesados pelo ruído nos regressores: o ajuste "desconfia" do passado ruidoso e diminui a memória (a1 = 0,30 e a2 = 0,21, quando o esperado para um sinal suave seria a1 ≈ 2 e a2 ≈ −1, porque s[n] − 2s[n−1] + s[n−2] ≈ Δt²·s″ ≈ 0). Sem memória, o modelo só segue a entrada. A RBF sofre o mesmo efeito, porque também foi ajustada com regressores ruidosos.
-
-**P: Como melhoraria?**
-Ajustar os modelos a partir do sinal filtrado, aumentar a ordem (mais atrasos), ou usar métodos próprios para ruído nos regressores (variáveis instrumentais).
-
-**P: Por que não usou funções complexas (Fourier)?**
-O enunciado pede RBF **ou** funções complexas. Escolhi RBF porque é o método dos exemplos da unidade (Exemplo_RBF e o mini projeto da turbina).
-
-**P: Por que separou validação e depois ajustou com todos os dados?**
-A validação serve só para escolher os hiperparâmetros (M, σ). Depois de escolhidos, usar todos os dados dá a estimativa mais precisa dos pesos.
-
-## 6. Conceitos que você precisa saber dizer em uma frase
-
-- **Regressores:** as entradas do modelo, aqui s[n−1], s[n−2], u[n], u[n−1].
-- **Subajuste (underfitting):** modelo simples demais; erra no treino e na validação.
-- **Sobreajuste (overfitting):** modelo flexível demais; acerta o treino (copia o ruído) e erra na validação.
-- **Matriz de projeto (Φ ou Z):** cada linha é uma amostra, cada coluna é uma função de base/regressor.
-- **Sistema sobredeterminado:** mais equações (1499) que incógnitas; o MMQ acha a solução que minimiza o erro quadrático.
-- **Número de condição de Φᵀ Φ:** mede a sensibilidade do sistema; muito grande = pesos instáveis.
-- **Parcimônia:** entre modelos com desempenho parecido, escolher o mais simples.
-
-## 7. Como rodar
-
-1. Deixe `Projeto_U2_Ajuste_de_Curvas.ipynb`, `projeto_u2.py` e `dados_projeto_02.csv` na mesma pasta (já estão).
-2. **Notebook:** abra no Jupyter/VS Code e use "Run All".
-3. **Script:** rode `python projeto_u2.py`. Os resultados aparecem no terminal e os gráficos abrem um de cada vez: feche a janela de um gráfico para o programa seguir para o próximo. Os comentários `# ==== ... ====` marcam as mesmas seções do notebook.
-4. Precisa apenas de `numpy` e `matplotlib`. A validação usa sorteio com semente fixa, então os números saem sempre iguais.
+1. Deixe `projeto_u2.py`, `Projeto_U2_Ajuste_de_Curvas.ipynb` e `dados_projeto_02.csv` na mesma pasta (já estão).
+2. **Script:** rode `python projeto_u2.py` nessa pasta. Os resultados aparecem no terminal e os gráficos abrem **um de cada vez**: feche a janela de um gráfico para o programa seguir para o próximo. O programa inteiro leva poucos segundos (sem contar o tempo com as janelas abertas).
+3. **Notebook:** abra no Jupyter ou no VS Code e use **"Run All"** (executar tudo).
+4. Precisa de Python com `numpy` e `matplotlib` (instale com `pip install numpy matplotlib`). Em qualquer computador os números saem iguais, porque o sorteio da validação usa semente fixa.
