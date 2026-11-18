@@ -1,15 +1,3 @@
-"""Computação Numérica - Projeto da Unidade II: modelando um sistema dinâmico com RBF e MMQ.
-
-Modelo do enunciado:  s[n] = f(s[n-1], s[n-2], u[n], u[n-1]),  para as saídas x e y.
-  - RBF: f é uma soma de gaussianas (Seção 4)
-  - MMQ: f é linear, a1*s[n-1] + a2*s[n-2] + b0*u[n] + b1*u[n-1] (Seção 5)
-
-Como rodar: deixe este arquivo e dados_projeto_02.csv na mesma pasta e execute  python projeto_u2.py
-Os gráficos abrem um de cada vez: feche a janela de um gráfico para o programa seguir.
-As seções marcadas com  # ==== ... ====  são as mesmas do notebook.
-"""
-
-
 # ==================== Bibliotecas ====================
 import csv
 import numpy as np
@@ -341,16 +329,3 @@ for modelo, saida, e, r in linhas_tabela:
     print(f"{modelo:<34}{saida:<7}{e:>10.5f}{np.sqrt(e):>9.4f}{r:>11.4f}{r**2:>8.4f}")
 
 print(f"\nParâmetros: RBF x = {len(modelo_rbf['x'][2])} pesos, RBF y = {len(modelo_rbf['y'][2])} pesos | MMQ = 4 por saída")
-
-
-# ==================== 8. Conclusões (resumo; o texto completo está no notebook) ====================
-# 1. RBF (16 gaussianas, 17 pesos) e MMQ (4 parâmetros) implementam o mesmo modelo do enunciado,
-#    e os pesos dos dois saem da mesma equação normal.
-# 2. Um passo à frente, os dois empatam (y: EMQ 0,0075 e r 0,954 nos dois): a relação é praticamente
-#    linear, então pela parcimônia o MMQ basta.
-# 3. Na simulação livre, a RBF foi um pouco melhor em y (EMQ 0,0185 e r 0,914 contra 0,0197 e 0,878).
-# 4. Em x os dois são fracos: o ruído nas entradas faz o MMQ subestimar a memória (a1 + a2 = 0,51),
-#    e a simulação vira quase uma onda quadrada.
-# 5. y é sempre melhor modelada que x por causa da relação sinal/ruído.
-# 6. Os ajustes não têm viés (regressão medido x ajustado com inclinação ~1 e intercepto ~0).
-# 7. EMQ mede o tamanho do erro e Pearson mede se a forma foi capturada: os dois se complementam.
